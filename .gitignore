@@ -1,4 +1,7 @@
-.env
+
 .ipynb_checkpoints/
 shared-jars/
 *.jar
+*.parquet
+__pycache__/
+*.pyc
