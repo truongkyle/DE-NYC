@@ -1,0 +1,168 @@
+version: '3.9'
+
+services:
+  minio:
+    image: minio/minio
+    container_name: datalake-minio
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_storage:/data
+    env_file:
+      - ./.env
+    command: server --console-address ":9001" /data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 10s
+    networks:
+      - nyc_network
+  hive-metastore:
+    container_name: datalake-hive-metastore
+    image: 'starburstdata/hive:3.1.2-e.18'
+    ports:
+      - '9083:9083' # Access via Thrift protocol
+    environment:
+      HIVE_METASTORE_DRIVER: ${HIVE_METASTORE_DRIVER}
+      HIVE_METASTORE_JDBC_URL: ${HIVE_METASTORE_JDBC_URL}
+      HIVE_METASTORE_USER: ${HIVE_METASTORE_USER}
+      HIVE_METASTORE_PASSWORD: ${HIVE_METASTORE_PASSWORD}
+      # HIVE_METASTORE_WAREHOUSE_DIR: s3://datalake/ # HDFS config, we don't need it
+      # HIVE_METASTORE_USERS_IN_ADMIN_ROLE: "admin" # We also don't need it
+      S3_ENDPOINT: ${S3_ENDPOINT}
+      S3_ACCESS_KEY: ${MINIO_ACCESS_KEY}
+      S3_SECRET_KEY: ${MINIO_SECRET_KEY}
+      S3_PATH_STYLE_ACCESS: "true"
+      # Below arguments exist for no reasons, but
+      # we can not live without it
+      REGION: ""
+      GOOGLE_CLOUD_KEY_FILE_PATH: ""
+      AZURE_ADL_CLIENT_ID: ""
+      AZURE_ADL_CREDENTIAL: ""
+      AZURE_ADL_REFRESH_URL: ""
+      AZURE_ABFS_STORAGE_ACCOUNT: ""
+      AZURE_ABFS_ACCESS_KEY: ""
+      AZURE_WASB_STORAGE_ACCOUNT: ""
+      AZURE_ABFS_OAUTH: ""
+      AZURE_ABFS_OAUTH_TOKEN_PROVIDER: ""
+      AZURE_ABFS_OAUTH_CLIENT_ID: ""
+      AZURE_ABFS_OAUTH_SECRET: ""
+      AZURE_ABFS_OAUTH_ENDPOINT: ""
+      AZURE_WASB_ACCESS_KEY: ""
+    depends_on:
+      - metastore_db
+    networks:
+      - nyc_network
+  metastore_db:
+    container_name: datalake-metastore-db
+    image: postgres:11
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_USER: ${HIVE_METASTORE_USER}
+      POSTGRES_PASSWORD: ${HIVE_METASTORE_PASSWORD}
+      POSTGRES_DB: ${HIVE_POSTGRES_DB}
+    volumes:
+      - metastore_db_data:/var/lib/postgresql/data
+    networks:
+      - nyc_network
+  trino:
+    image: "trinodb/trino:410"
+    container_name: datalake-trino
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./trino/etc:/usr/lib/trino/etc:ro
+      - ./trino/catalog/:/etc/trino/catalog
+    depends_on:
+      - hive-metastore
+    networks:
+      - nyc_network
+  spark-master:
+    build:
+      context: ./spark
+      dockerfile: ./Dockerfile
+    container_name: spark-master
+    hostname: spark-master
+    environment:
+      - SPARK_MODE=master
+      - SPARK_MASTER_HOST=spark-master
+      - SPARK_MASTER_PORT=7077
+      - SPARK_MASTER_WEBUI_PORT=8080
+      - PYSPARK_PYTHON=python3
+    command: ["/opt/spark/sbin/start-master.sh", "-h", "spark-master", "-p", "7077", "--webui-port", "8080"]
+    ports:
+      - "7077:7077"
+      - "8084:8080"
+    volumes:
+      - ./spark/conf/spark-defaults.conf:/opt/spark/conf/spark-defaults.conf:ro
+      - ./spark/apps:/opt/spark-apps
+      - ./spark/logs:/opt/spark/logs
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+    networks:
+      - nyc_network
+
+  spark-worker-1:
+    image: spark-nyc:latest   # <== dùng image build từ ./spark (tag bạn đặt)
+    container_name: spark-worker-1
+    hostname: spark-worker-1
+    environment:
+      - SPARK_WORKER_MEMORY=2G
+      - SPARK_WORKER_CORES=1
+      - PYSPARK_PYTHON=python3
+    command: ["/opt/spark/sbin/start-worker.sh", "spark://spark-master:7077"]
+    depends_on: [spark-master]
+    volumes:
+      - ./spark/conf/spark-defaults.conf:/opt/spark/conf/spark-defaults.conf:ro
+      - ./spark/logs:/opt/spark/logs
+    networks: [nyc_network]
+
+  spark-worker-2:
+    image: spark-nyc:latest
+    container_name: spark-worker-2
+    hostname: spark-worker-2
+    environment:
+      - SPARK_WORKER_MEMORY=2G
+      - SPARK_WORKER_CORES=1
+      - PYSPARK_PYTHON=python3
+    command: ["/opt/spark/sbin/start-worker.sh", "spark://spark-master:7077"]
+    depends_on: [spark-master]
+    volumes:
+      - ./spark/conf/spark-defaults.conf:/opt/spark/conf/spark-defaults.conf:ro
+      - ./spark/logs:/opt/spark/logs
+    networks: [nyc_network]
+
+  jupyter:
+    build:
+      context: ./spark-jupyter
+    container_name: jupyter
+    ports:
+      - "8888:8888"
+    environment:
+      - JUPYTER_ENABLE_LAB=yes
+      - SPARK_MASTER=spark://spark-master:7077
+      - SPARK_CONF_DIR=/home/jovyan/spark-conf
+      - AWS_ACCESS_KEY_ID= ${MINIO_ACCESS_KEY}
+      - AWS_SECRET_ACCESS_KEY= ${MINIO_SECRET_KEY}
+    volumes:
+      - ./spark/conf:/home/jovyan/spark-conf
+      - ./spark-jupyter/notebooks:/home/jovyan/notebooks
+    depends_on:
+      - minio
+      - spark-master
+    networks:
+      - nyc_network
+volumes:
+  minio_storage:
+  metastore_db_data:
+
+networks:
+  nyc_network:
+    driver: bridge
+    name: nyc_network
