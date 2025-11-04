@@ -25,7 +25,7 @@ daily_zone = (trips
  .save(f"{gold}/daily_revenue_by_zone"))
 
 # 2) hourly_demand_by_zone
-from pyspark.sql.functions import hour
+
 hourly = (trips
     .groupBy("pickup_date","pickup_hour","pu_location_id","service_type")
     .agg(count("*").alias("trips")))
