@@ -5,3 +5,5 @@ shared-jars/
 *.parquet
 __pycache__/
 *.pyc
+metabase-data/
+*.db

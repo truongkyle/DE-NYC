@@ -137,6 +137,20 @@ services:
       - ./spark/conf/spark-defaults.conf:/opt/spark/conf/spark-defaults.conf:ro
       - ./spark/logs:/opt/spark/logs
     networks: [nyc_network]
+  
+  metabase:
+    image: metabase/metabase:latest
+    container_name: datalake-metabase
+    ports:
+      - "3000:3000"
+    environment:
+      - MB_DB_FILE=/metabase.db/metabase.db
+    volumes:
+      - ./metabase-data:/metabase.db
+    depends_on:
+      - trino
+    networks:
+      - nyc_network
 
   jupyter:
     build:
