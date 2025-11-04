@@ -151,9 +151,6 @@ services:
       - trino
     networks:
       - nyc_network
-# ==========================================
-# AIRFLOW - Orchestration Layer (Production)
-# ==========================================
   airflow-init:
     image: apache/airflow:2.9.1
     container_name: airflow-init
@@ -256,10 +253,149 @@ services:
       - spark-master
     networks:
       - nyc_network
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    platform: linux/amd64
+    container_name: cdc_zookeeper
+    ports:
+      - "2181:2181"
+    healthcheck:
+      test: echo srvr | nc zookeeper 2181 || exit 1
+      start_period: 10s
+      retries: 20
+      interval: 10s
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    networks:
+      - nyc_network
+  broker:
+    image: confluentinc/cp-server:7.5.0
+    container_name: cdc_broker
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    ports:
+      - "9092:9092"
+      - "9101:9101"
+    healthcheck:
+      test: nc -z localhost 9092 || exit -1
+      start_period: 15s
+      interval: 5s
+      timeout: 10s
+      retries: 10
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: "zookeeper:2181"
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://broker:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_CONFLUENT_SCHEMA_REGISTRY_URL: http://schema-registry:8081
+    networks:
+      - nyc_network
+  schema-registry:
+    image: confluentinc/cp-schema-registry:7.5.0
+    container_name: cdc_schema-registry
+    ports:
+      - "8081:8081"
+    depends_on:
+      broker:
+        condition: service_healthy
+    healthcheck:
+      start_period: 10s
+      interval: 10s
+      retries: 20
+      test: curl --user superUser:superUser --fail --silent --insecure http://localhost:8081/subjects --output /dev/null || exit 1
+    environment:
+      SCHEMA_REGISTRY_HOST_NAME: schema-registry
+      SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: 'broker:29092'
+      SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
+    networks:
+      - nyc_network
+  
+  debezium:
+    image: debezium/connect:1.9
+    platform: linux/amd64
+    container_name:  cdc_debezium
+    depends_on:
+      broker:
+        condition: service_healthy
+      schema-registry:
+        condition: service_healthy
+      zookeeper:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'curl',
+          '--silent',
+          '--fail',
+          '-X',
+          'GET',
+          'http://localhost:8083/connectors',
+        ]
+      start_period: 10s
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "8083:8083"
+    networks:
+      - nyc_network
+    environment:
+      BOOTSTRAP_SERVERS: broker:29092
+      GROUP_ID: 1
+      CONFIG_STORAGE_TOPIC: connect_configs
+      OFFSET_STORAGE_TOPIC: connect_offsets
+      # Set to Avro for higher performance
+      # KEY_CONVERTER: io.confluent.connect.avro.AvroConverter
+      # VALUE_CONVERTER: io.confluent.connect.avro.AvroConverter
+      KEY_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      CONNECT_KEY_CONVERTER_SCHEMA_REGISTRY_URL: http://schema-registry:8081
+      CONNECT_VALUE_CONVERTER_SCHEMA_REGISTRY_URL: http://schema-registry:8081
+      CONNECT_TOPIC_CREATION_ENABLE: true
+  debezium-ui:
+    image: debezium/debezium-ui:latest
+    platform: linux/amd64
+    container_name: cdc_debezium_ui
+    ports:
+      - "8082:8080"
+    hostname: cdc_debezium_ui
+    depends_on:
+      debezium:
+        condition: service_healthy
+    networks:
+      - nyc_network
+    environment:
+      KAFKA_CONNECT_URIS: http://debezium:8083
+  postgresql:
+    # Set wal_level from replica (default) to logical
+    # so that Debezium can capture change
+    image: postgres:17
+    command: ['postgres', '-c', 'wal_level=logical']
+    container_name: cdc_postgresql
+    healthcheck:
+      test: ['CMD', 'psql', '-U', 'xavie', '-c', 'SELECT 1']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "5434:5432"
+    environment:
+      - POSTGRES_DB=xavie
+      - POSTGRES_USER=xavie
+      - POSTGRES_PASSWORD=xavie
+    networks:
+      - nyc_network
+    volumes: 
+      - cdc_postgres_data:/var/lib/postgresql/data
 volumes:
   minio_storage:
   metastore_db_data:
   airflow_db_data:
+  cdc_postgres_data:
 
 networks:
   nyc_network:
