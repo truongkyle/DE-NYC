@@ -1,5 +1,5 @@
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import input_file_name, regexp_extract, lit, col
+from pyspark.sql import functions as F
 
 spark = (SparkSession.builder
          .appName("NYC-Bronze")
@@ -12,10 +12,16 @@ base_bronze = "s3a://datalake/bronze/nyc_taxi"
 def load_write(dataset, ts_col_pickup, ts_col_frop):
     df = spark.read.parquet(f"{base_raw}/{dataset}/*")
 
-    df = df.withColumn("_srcfile", input_file_name()) \
-           .withColumn("year", regexp_extract(col("_srcfile"), r"_(\d{4})-\d{2}\.parquet$", 1)) \
-           .withColumn("month", regexp_extract(col("_srcfile"), r"_\d{4}-(\d{2})\.parquet$", 1)) \
-           .drop("_srcfile")
+    # df = df.withColumn("_srcfile", input_file_name()) \
+    #        .withColumn("year", regexp_extract(col("_srcfile"), r"_(\d{4})-\d{2}\.parquet$", 1)) \
+    #        .withColumn("month", regexp_extract(col("_srcfile"), r"_\d{4}-(\d{2})\.parquet$", 1)) \
+    #        .drop("_srcfile")
+    df = df.withColumn("_src_file", F.input_file_name()) \
+            .withColumn("_file_name", F.split(F.col("_src_file"), "/").getItem(-1)) \
+            .withColumn("_year_and_month", F.split(F.col("_file_name"), "_").getItem(-1)) \
+            .withColumn("year", F.split(F.col("_year_and_month"), "-").getItem(0))\
+            .withColumn("month", F.split(F.split(F.col("_year_and_month"), "-").getItem(-1), ".").getItem(0)) \
+            .drop("_src_file", "_file_name", "_year_and_month")
     (df.write
         .format("delta")
         .mode("append")

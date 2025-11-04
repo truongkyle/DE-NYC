@@ -2,6 +2,7 @@ from pyspark.sql import SparkSession
 spark = (SparkSession.builder
          .appName("Register-Tables")
          .master("spark://spark-master:7077")
+         .config("hive.metastore.uris", "thrift://hive-metastore:9083")
          .enableHiveSupport()
          .getOrCreate())
 

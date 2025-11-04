@@ -47,11 +47,14 @@ trips = y.unionByName(g, allowMissingColumns=True).unionByName(h, allowMissingCo
 
 # làm sạch cơ bản
 trips = (trips
-    .where("pickup_datetime is not null and dropoff_datetime is not null")
-    .where("trip_distance >= 0 and trip_distance <= 200")
-    .where("dropoff_datetime >= pickup_datetime")
+    # .where("pickup_datetime is not null and dropoff_datetime is not null")
+    # .where("trip_distance >= 0 and trip_distance <= 200")
+    # .where("dropoff_datetime >= pickup_datetime")
+    .where((col("pickup_datetime").isNotNull()) & col("dropoff_datetime").isNotNull())
+    .where((col("trip_distance") >= 0) & (col("trip_distance") <= 200))
+    .where(col("dropoff_datetime") >= col("pickup_datetime"))
     .withColumn("duration_min", (col("dropoff_datetime").cast("long")-col("pickup_datetime").cast("long"))/60.0)
-    .where("duration_min >= 0 and duration_min <= 600")  # <= 10 giờ
+    .where((col("duration_min") >= 0) & (col("duration_min") <= 600))  # <= 10 giờ
     .withColumn("pickup_date",  date_format(col("pickup_datetime"), "yyyy-MM-dd"))
     .withColumn("pickup_hour",  hour(col("pickup_datetime"))))
 
