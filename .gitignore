@@ -7,3 +7,5 @@ __pycache__/
 *.pyc
 metabase-data/
 *.db
+.DS_Store
+airflow/logs/

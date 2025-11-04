@@ -235,7 +235,7 @@ http://localhost:3000
 | **Display name** | Trino        |
 | **Host**         | `trino`      |
 | **Port**         | `8080`       |
-| **Catalog**      | `hive`       |
+| **Catalog**      | `delta`       |
 | **Schema**       | `nyc_gold`   |
 | **Username**     | `trino`      |
 | **Password**     | *(để trống)* |
@@ -246,7 +246,7 @@ http://localhost:3000
 
 ```sql
 SELECT pickup_date, service_type, SUM(revenue) AS total_revenue
-FROM hive.nyc_gold.daily_revenue_by_zone
+FROM delta.nyc_gold.daily_revenue_by_zone
 GROUP BY pickup_date, service_type
 ORDER BY pickup_date
 ```
@@ -259,26 +259,26 @@ ORDER BY pickup_date
 * Save → **Add to dashboard** → “NYC Taxi Analytics”
 
 ---
-
+![NYC Taxi Analytics](./images/metabase_visualization.png)
 
 ## 🧩 Các truy vấn SQL tham khảo
 
 ```sql
 -- Doanh thu theo ngày
 SELECT pickup_date, service_type, SUM(revenue) AS total_revenue
-FROM hive.nyc_gold.daily_revenue_by_zone
+FROM delta.nyc_gold.daily_revenue_by_zone
 GROUP BY pickup_date, service_type
 ORDER BY pickup_date;
 
 -- Nhu cầu theo giờ
 SELECT pickup_hour, service_type, SUM(trips) AS total_trips
-FROM hive.nyc_gold.hourly_demand_by_zone
+FROM delta.nyc_gold.hourly_demand_by_zone
 GROUP BY pickup_hour, service_type
 ORDER BY pickup_hour;
 
 -- Top 10 khu vực doanh thu cao nhất
 SELECT pu_location_id, SUM(revenue) AS total_revenue
-FROM hive.nyc_gold.daily_revenue_by_zone
+FROM delta.nyc_gold.daily_revenue_by_zone
 GROUP BY pu_location_id
 ORDER BY total_revenue DESC
 LIMIT 10;
