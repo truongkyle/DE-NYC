@@ -32,6 +32,9 @@
 
 ```
 DE-NYC/
+|──airflow/
+|──|──dags
+|       |_nyc_batch_pipeline_dag.py # chay pipe cho batch process
 ├── data/
 │   ├── raw/                # dữ liệu tải từ NYC
 │   ├── bronze/             # output của Spark Bronze job
