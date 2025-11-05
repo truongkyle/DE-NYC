@@ -1,0 +1,14 @@
+{
+    "name": "rides-cdc",  
+    "config": {
+      "connector.class": "io.debezium.connector.postgresql.PostgresConnector",
+      "database.hostname": "postgresql",
+      "database.port": "5432",
+      "database.user": "xavie",
+      "database.password": "xavie",
+      "database.dbname" : "xavie",
+      "plugin.name": "pgoutput",
+      "database.server.name": "nyc",
+      "table.include.list": "public.rides"
+    }
+}

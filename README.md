@@ -322,3 +322,28 @@ Pipeline này cung cấp một nền tảng **Data Lakehouse hiện đại**, ba
 → Giúp xây dựng quy trình xử lý dữ liệu batch **chuẩn thực tế doanh nghiệp**, dễ mở rộng sang **real-time streaming** hoặc **machine learning pipeline**.
 
 ---
+
+# Real-time streaming
+
+
+## Register PostgreSQL Connector
+
+```bash
+bash streaming_simulations/run.sh register_connector configs/cdc/postgres_cdc.json
+```
+
+---
+## Create Table in PostgreSQL
+
+```bash
+python streaming_simulations/utils/create_table.py
+```
+---
+
+## 5️⃣ Insert Fake Data (1000 Rows)
+
+```bash
+python streaming_simulations/utils/insert_table.py
+```
+
+---

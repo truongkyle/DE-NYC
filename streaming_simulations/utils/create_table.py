@@ -14,16 +14,13 @@ def main():
 
     # Create devices table
     create_table_query = """
-        CREATE TABLE IF NOT EXISTS devices (
-            device_id INT,
-            created VARCHAR(30),
-            feature_0 FLOAT,
-            feature_4 FLOAT,
-            feature_8 FLOAT,
-            feature_6 FLOAT,
-            feature_2 FLOAT,
-            feature_9 FLOAT,
-            feature_3 FLOAT
+        CREATE TABLE IF NOT EXISTS rides (
+            ride_id SERIAL PRIMARY KEY,
+            pickup_ts TIMESTAMP,
+            dropoff_ts TIMESTAMP,
+            fare DOUBLE PRECISION,
+            tip DOUBLE PRECISION,
+            total DOUBLE PRECISION
         );
     """
     try:
