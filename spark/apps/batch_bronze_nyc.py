@@ -1,6 +1,17 @@
 from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
 
+# spark = (SparkSession.builder
+#          .appName("NYC-Bronze")
+#          .config("spark.cores.max", "2")
+#          .config("spark.executor.instances", "1")
+#          .config("spark.executor.cores", "2")
+#          .config("spark.executor.memory", "2g")
+#          .config("spark.executor.memoryOverhead", "512m")
+#          .config("spark.driver.memory", "2g")
+#          .master("spark://spark-master:7077")
+#          .getOrCreate())
+
 spark = (SparkSession.builder
          .appName("NYC-Bronze")
          .master("spark://spark-master:7077")

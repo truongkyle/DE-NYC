@@ -99,6 +99,7 @@ services:
       - "8084:8080"
     volumes:
       - ./spark/conf/spark-defaults.conf:/opt/spark/conf/spark-defaults.conf:ro
+      - ./spark/conf/fairscheduler.xml:/opt/spark/conf/fairscheduler.xml:ro
       - ./spark/apps:/opt/spark-apps
       - ./spark/logs:/opt/spark/logs
     ulimits:
@@ -121,8 +122,15 @@ services:
       - PYSPARK_PYTHON=python3
     command: ["/opt/spark/sbin/start-worker.sh", "spark://spark-master:7077"]
     depends_on: [spark-master]
+    # mem_limit: 4g
+    # deploy:
+    #   resources:
+    #     limits:
+    #       cpus: "2"
+    #       memory: 3g
     volumes:
       - ./spark/conf/spark-defaults.conf:/opt/spark/conf/spark-defaults.conf:ro
+      - ./spark/conf/fairscheduler.xml:/opt/spark/conf/fairscheduler.xml:ro
       - ./spark/logs:/opt/spark/logs
     networks: [nyc_network]
 
@@ -139,8 +147,15 @@ services:
       - PYSPARK_PYTHON=python3
     command: ["/opt/spark/sbin/start-worker.sh", "spark://spark-master:7077"]
     depends_on: [spark-master]
+    # mem_limit: 4g
+    # deploy:
+    #   resources:
+    #     limits:
+    #       cpus: "2"
+    #       memory: 4g
     volumes:
       - ./spark/conf/spark-defaults.conf:/opt/spark/conf/spark-defaults.conf:ro
+      - ./spark/conf/fairscheduler.xml:/opt/spark/conf/fairscheduler.xml:ro
       - ./spark/logs:/opt/spark/logs
     networks: [nyc_network]
   
@@ -217,6 +232,9 @@ services:
       - AIRFLOW__CORE__EXECUTOR=LocalExecutor
       - AIRFLOW__CORE__FERNET_KEY=MJK0tAZlu6zOw8Ibc3oIGuJQb3W25gQmtk3CCn7bm-o=
       - AIRFLOW__CORE__LOAD_EXAMPLES=False
+      - AIRFLOW__CORE__PARALLELISM=16
+      - AIRFLOW__CORE__DAG_CONCURRENCY=16
+      - AIRFLOW__CORE__MAX_ACTIVE_TASKS_PER_DAG=16
       - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@airflow-db:5432/airflow
     command: scheduler
     volumes:

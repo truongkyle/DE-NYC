@@ -1,0 +1,16 @@
+<allocations>
+  <pool name="bronze">
+    <schedulingMode>FAIR</schedulingMode>
+    <weight>1</weight>
+  </pool>
+
+  <pool name="silver">
+    <schedulingMode>FAIR</schedulingMode>
+    <weight>1</weight>
+  </pool>
+
+  <pool name="gold">
+    <schedulingMode>FAIR</schedulingMode>
+    <weight>2</weight>
+  </pool>
+</allocations>
